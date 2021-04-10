@@ -45,52 +45,52 @@ class GalleryPage extends StatelessWidget {
   }
 }
 
-// class Photo extends StatefulWidget {
-//   final String url;
-//   //final int index;
-
-//   Photo({this.url});
-
-//   @override
-//   _PhotoState createState() =>
-//       _PhotoState(url: this.url, index: urls.indexOf(this.url));
-// }
-
-// class _PhotoState extends State<Photo> {
-//   String url;
-//   int index;
-
-//   _PhotoState({this.url, this.index});
-
-//   onTap() {
-//     print(index);
-//     setState(() {
-//       index >= urls.length - 1 ? index = 0 : index++;
-//     });
-//     url = urls[index];
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     print(index);
-//     return Container(
-//       padding: EdgeInsets.only(top: 10),
-//       child: GestureDetector(
-//         child: Image.network(url),
-//         onTap: onTap,
-//       ),
-//     );
-//   }
-// }
-
-class Photo extends StatelessWidget {
+class Photo extends StatefulWidget {
   final String url;
+  //final int index;
 
   Photo({this.url});
 
   @override
+  _PhotoState createState() =>
+      _PhotoState(url: this.url, index: urls.indexOf(this.url));
+}
+
+class _PhotoState extends State<Photo> {
+  String url;
+  int index;
+
+  _PhotoState({this.url, this.index});
+
+  onTap() {
+    print('onTap => Index: ' + index.toString());
+    setState(() {
+      index >= urls.length - 1 ? index = 0 : index++;
+    });
+    url = urls[index];
+  }
+
+  @override
   Widget build(BuildContext context) {
+    print('build => Index: ' + index.toString());
     return Container(
-        padding: EdgeInsets.only(top: 10), child: Image.network(url));
+      padding: EdgeInsets.only(top: 10),
+      child: GestureDetector(
+        child: Image.network(url),
+        onTap: onTap,
+      ),
+    );
   }
 }
+
+// class Photo extends StatelessWidget {
+//   final String url;
+
+//   Photo({this.url});
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Container(
+//         padding: EdgeInsets.only(top: 10), child: Image.network(url));
+//   }
+// }
