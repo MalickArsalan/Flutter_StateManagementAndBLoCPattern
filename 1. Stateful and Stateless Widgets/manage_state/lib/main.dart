@@ -12,25 +12,76 @@ const List<String> urls = [
   "https://live.staticflickr.com/65535/50488789168_ff9f1f8809.jpg",
 ];
 
-class App extends StatelessWidget {
+class App extends StatefulWidget {
+  @override
+  AppState createState() => AppState();
+}
+
+class AppState extends State<App> {
+  bool isTagging = false;
+  List<PhotoState> photoStates = List.of(urls.map((url) => PhotoState(url)));
+
+  void toggleTagging(String url) {
+    setState(() {
+      isTagging = !isTagging;
+      photoStates.forEach((element) {
+        if (isTagging && element.url == url) {
+          element.selected = true;
+        } else {
+          element.selected = false;
+        }
+      });
+    });
+  }
+
+  void onPhotoSelect(String url, bool selected) {
+    setState(() {
+      photoStates.forEach((element) {
+        if (element.url == url) {
+          element.selected = selected;
+        }
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Photo Viewer',
       home: GalleryPage(
         title: 'Image Gallery',
-        urls: urls,
+        photoStates: photoStates,
+        tagging: isTagging,
+        toggleTagging: toggleTagging,
+        onPhotoSelect: onPhotoSelect,
       ),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
+class PhotoState {
+  String url;
+  bool selected;
+
+  PhotoState(this.url, {this.selected = false});
+}
+
 class GalleryPage extends StatelessWidget {
   final String title;
-  final List<String> urls;
+  final List<PhotoState> photoStates;
+  final bool tagging;
 
-  GalleryPage({this.title, this.urls});
+  final Function toggleTagging;
+  final Function onPhotoSelect;
+
+  GalleryPage({
+    this.title,
+    this.photoStates,
+    this.tagging,
+    this.toggleTagging,
+    this.onPhotoSelect,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -39,58 +90,56 @@ class GalleryPage extends StatelessWidget {
       body: GridView.count(
         primary: false,
         crossAxisCount: 2,
-        children: List.of(urls.map((url) => Photo(url: url))),
+        children: List.of(photoStates.map((ps) => Photo(
+              state: ps,
+              selectable: tagging,
+              onLongPress: toggleTagging,
+              onSelect: onPhotoSelect,
+            ))),
       ),
     );
   }
 }
 
-// class Photo extends StatefulWidget {
-//   final String url;
-//   //final int index;
-
-//   Photo({this.url});
-
-//   @override
-//   _PhotoState createState() =>
-//       _PhotoState(url: this.url, index: urls.indexOf(this.url));
-// }
-
-// class _PhotoState extends State<Photo> {
-//   String url;
-//   int index;
-
-//   _PhotoState({this.url, this.index});
-
-//   onTap() {
-//     print(index);
-//     setState(() {
-//       index >= urls.length - 1 ? index = 0 : index++;
-//     });
-//     url = urls[index];
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     print(index);
-//     return Container(
-//       padding: EdgeInsets.only(top: 10),
-//       child: GestureDetector(
-//         child: Image.network(url),
-//         onTap: onTap,
-//       ),
-//     );
-//   }
-// }
-
 class Photo extends StatelessWidget {
-  final String url;
+  final PhotoState state;
+  final bool selectable;
 
-  Photo({this.url});
+  final Function onLongPress;
+  final Function onSelect;
+
+  Photo({this.state, this.selectable, this.onLongPress, this.onSelect});
 
   @override
   Widget build(BuildContext context) {
+    List<Widget> children = [
+      GestureDetector(
+        child: Image.network(state.url),
+        onLongPress: () => onLongPress(state.url),
+      ),
+    ];
+
+    if (selectable) {
+      children.add(Positioned(
+          left: 20,
+          top: 0,
+          child: Theme(
+            data: Theme.of(context)
+                .copyWith(unselectedWidgetColor: Colors.grey[200]),
+            child: Checkbox(
+              onChanged: (value) {
+                onSelect(state.url, value);
+              },
+              value: state.selected,
+              activeColor: Colors.white,
+              checkColor: Colors.black,
+            ),
+          )));
+    }
+
     return Container(
-        padding: EdgeInsets.only(top: 10), child: Image.network(url));
+      padding: EdgeInsets.only(top: 10),
+      child: Stack(alignment: Alignment.center, children: children),
+    );
   }
 }
