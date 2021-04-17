@@ -12,85 +12,173 @@ const List<String> urls = [
   "https://live.staticflickr.com/65535/50488789168_ff9f1f8809.jpg",
 ];
 
-class App extends StatelessWidget {
+class App extends StatefulWidget {
+  @override
+  AppState createState() => AppState();
+}
+
+class MyInheritedWidget extends InheritedWidget {
+  final AppState state;
+
+  MyInheritedWidget({Key key, @required Widget child, @required this.state})
+      : super(key: key, child: child);
+
+  @override
+  bool updateShouldNotify(covariant InheritedWidget oldWidget) => true;
+}
+
+class AppState extends State<App> {
+  bool isTagging = false;
+  List<PhotoState> photoStates = List.of(urls.map((url) => PhotoState(url)));
+  Set<String> tags = {"all", "nature", "cat"};
+
+  void selectTag(String tag) {
+    setState(() {
+      if (isTagging) {
+        if (tag != "all") {
+          photoStates.forEach((element) {
+            if (element.selected) {
+              element.tags.add(tag);
+            }
+          });
+        }
+        toggleTagging(null);
+      } else {
+        photoStates.forEach((element) {
+          element.display = tag == "all" ? true : element.tags.contains(tag);
+        });
+      }
+    });
+  }
+
+  void toggleTagging(String url) {
+    setState(() {
+      isTagging = !isTagging;
+      photoStates.forEach((element) {
+        if (isTagging && element.url == url) {
+          element.selected = true;
+        } else {
+          element.selected = false;
+        }
+      });
+    });
+  }
+
+  void onPhotoSelect(String url, bool selected) {
+    setState(() {
+      photoStates.forEach((element) {
+        if (element.url == url) {
+          element.selected = selected;
+        }
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Photo Viewer',
-      home: GalleryPage(
-        title: 'Image Gallery',
-        urls: urls,
+      home: MyInheritedWidget(
+        state: this,
+        child: Builder(builder: (BuildContext innerContext) {
+          return GalleryPage(
+              title: 'Image Gallery',
+              model: innerContext
+                  .dependOnInheritedWidgetOfExactType<MyInheritedWidget>()
+                  .state);
+        }),
       ),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
+class PhotoState {
+  String url;
+  bool selected;
+  bool display;
+  Set<String> tags = {};
+
+  PhotoState(this.url, {this.selected = false, this.display = true, tags});
+}
+
 class GalleryPage extends StatelessWidget {
   final String title;
-  final List<String> urls;
+  final AppState model;
 
-  GalleryPage({this.title, this.urls});
+  GalleryPage({this.title, this.model});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(this.title)),
-      body: GridView.count(
-        primary: false,
-        crossAxisCount: 2,
-        children: List.of(urls.map((url) => Photo(url: url))),
+      body: Builder(builder: (BuildContext innerContext) {
+        return GridView.count(
+          primary: false,
+          crossAxisCount: 2,
+          children: List.of(model.photoStates
+              .where((ps) => ps.display ?? true)
+              .map((ps) => Photo(
+                    state: ps,
+                    model: innerContext
+                        .dependOnInheritedWidgetOfExactType<MyInheritedWidget>()
+                        .state,
+                  ))),
+        );
+      }),
+      drawer: Drawer(
+        child: ListView(
+          children: List.of(
+            model.tags.map((t) => ListTile(
+                  title: Text(t),
+                  onTap: () {
+                    model.selectTag(t);
+                    Navigator.of(context).pop();
+                  },
+                )),
+          ),
+        ),
       ),
     );
   }
 }
 
-class Photo extends StatefulWidget {
-  final String url;
-  //final int index;
+class Photo extends StatelessWidget {
+  final PhotoState state;
+  final AppState model;
 
-  Photo({this.url});
-
-  @override
-  _PhotoState createState() =>
-      _PhotoState(url: this.url, index: urls.indexOf(this.url));
-}
-
-class _PhotoState extends State<Photo> {
-  String url;
-  int index;
-
-  _PhotoState({this.url, this.index});
-
-  onTap() {
-    print('onTap => Index: ' + index.toString());
-    setState(() {
-      index >= urls.length - 1 ? index = 0 : index++;
-    });
-    url = urls[index];
-  }
+  Photo({this.state, this.model});
 
   @override
   Widget build(BuildContext context) {
-    print('build => Index: ' + index.toString());
+    List<Widget> children = [
+      GestureDetector(
+        child: Image.network(state.url),
+        onLongPress: () => model.toggleTagging(state.url),
+      ),
+    ];
+
+    if (model.isTagging) {
+      children.add(Positioned(
+          left: 20,
+          top: 0,
+          child: Theme(
+            data: Theme.of(context)
+                .copyWith(unselectedWidgetColor: Colors.grey[200]),
+            child: Checkbox(
+              onChanged: (value) {
+                model.onPhotoSelect(state.url, value);
+              },
+              value: state.selected,
+              activeColor: Colors.white,
+              checkColor: Colors.black,
+            ),
+          )));
+    }
+
     return Container(
       padding: EdgeInsets.only(top: 10),
-      child: GestureDetector(
-        child: Image.network(url),
-        onTap: onTap,
-      ),
+      child: Stack(alignment: Alignment.center, children: children),
     );
   }
 }
-
-// class Photo extends StatelessWidget {
-//   final String url;
-
-//   Photo({this.url});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Container(
-//         padding: EdgeInsets.only(top: 10), child: Image.network(url));
-//   }
-// }
