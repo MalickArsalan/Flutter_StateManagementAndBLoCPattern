@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:scoped_model/scoped_model.dart';
 
 void main() {
   runApp(App());
@@ -12,84 +13,71 @@ const List<String> urls = [
   "https://live.staticflickr.com/65535/50488789168_ff9f1f8809.jpg",
 ];
 
-class App extends StatefulWidget {
+class App extends StatelessWidget {
   @override
-  AppState createState() => AppState();
+  Widget build(BuildContext context) {
+    return ScopedModel<AppState>(
+      model: AppState(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Photo Viewer',
+        home: ScopedModelDescendant<AppState>(builder: (context, child, model) {
+          return GalleryPage(
+            title: 'Image Gallery',
+            model: model,
+          );
+        }),
+      ),
+    );
+  }
 }
 
-class MyInheritedWidget extends InheritedWidget {
-  final AppState state;
-
-  MyInheritedWidget({Key key, @required Widget child, @required this.state})
-      : super(key: key, child: child);
-
-  @override
-  bool updateShouldNotify(covariant InheritedWidget oldWidget) => true;
-}
-
-class AppState extends State<App> {
+class AppState extends Model {
   bool isTagging = false;
   List<PhotoState> photoStates = List.of(urls.map((url) => PhotoState(url)));
   Set<String> tags = {"all", "nature", "cat"};
 
+  static AppState of(BuildContext context) {
+    return ScopedModel.of<AppState>(context);
+  }
+
   void selectTag(String tag) {
-    setState(() {
-      if (isTagging) {
-        if (tag != "all") {
-          photoStates.forEach((element) {
-            if (element.selected) {
-              element.tags.add(tag);
-            }
-          });
-        }
-        toggleTagging(null);
-      } else {
+    if (isTagging) {
+      if (tag != "all") {
         photoStates.forEach((element) {
-          element.display = tag == "all" ? true : element.tags.contains(tag);
+          if (element.selected) {
+            element.tags.add(tag);
+          }
         });
       }
-    });
+      toggleTagging(null);
+    } else {
+      photoStates.forEach((element) {
+        element.display = tag == "all" ? true : element.tags.contains(tag);
+      });
+    }
+    notifyListeners();
   }
 
   void toggleTagging(String url) {
-    setState(() {
-      isTagging = !isTagging;
-      photoStates.forEach((element) {
-        if (isTagging && element.url == url) {
-          element.selected = true;
-        } else {
-          element.selected = false;
-        }
-      });
+    isTagging = !isTagging;
+    photoStates.forEach((element) {
+      if (isTagging && element.url == url) {
+        element.selected = true;
+      } else {
+        element.selected = false;
+      }
     });
+    notifyListeners();
   }
 
   void onPhotoSelect(String url, bool selected) {
-    setState(() {
-      photoStates.forEach((element) {
-        if (element.url == url) {
-          element.selected = selected;
-        }
-      });
+    photoStates.forEach((element) {
+      if (element.url == url) {
+        element.selected = selected;
+      }
     });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Photo Viewer',
-      home: MyInheritedWidget(
-        state: this,
-        child: Builder(builder: (BuildContext innerContext) {
-          return GalleryPage(
-              title: 'Image Gallery',
-              model: innerContext
-                  .dependOnInheritedWidgetOfExactType<MyInheritedWidget>()
-                  .state);
-        }),
-      ),
-      debugShowCheckedModeBanner: false,
-    );
+    notifyListeners();
   }
 }
 
@@ -112,20 +100,22 @@ class GalleryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(this.title)),
-      body: Builder(builder: (BuildContext innerContext) {
-        return GridView.count(
-          primary: false,
-          crossAxisCount: 2,
-          children: List.of(model.photoStates
-              .where((ps) => ps.display ?? true)
-              .map((ps) => Photo(
-                    state: ps,
-                    model: innerContext
-                        .dependOnInheritedWidgetOfExactType<MyInheritedWidget>()
-                        .state,
-                  ))),
-        );
-      }),
+      body: Builder(
+        builder: (BuildContext innerContext) {
+          return GridView.count(
+            primary: false,
+            crossAxisCount: 2,
+            children:
+                List.of(model.photoStates.where((ps) => ps.display ?? true).map(
+                      (ps) => Photo(
+                        state: ps,
+                        model: AppState.of(
+                            context), //ScopedModel.of<AppState>(context),
+                      ),
+                    )),
+          );
+        },
+      ),
       drawer: Drawer(
         child: ListView(
           children: List.of(
