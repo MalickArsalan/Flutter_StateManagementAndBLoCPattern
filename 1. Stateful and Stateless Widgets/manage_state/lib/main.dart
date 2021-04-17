@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:scoped_model/scoped_model.dart';
+import 'package:provider/provider.dart';
 
 void main() {
-  runApp(App());
+  runApp(ChangeNotifierProvider(create: (_) => AppState(), child: App()));
 }
 
 const List<String> urls = [
@@ -16,30 +16,20 @@ const List<String> urls = [
 class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return ScopedModel<AppState>(
-      model: AppState(),
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Photo Viewer',
-        home: ScopedModelDescendant<AppState>(builder: (context, child, model) {
-          return GalleryPage(
-            title: 'Image Gallery',
-            model: model,
-          );
-        }),
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Photo Viewer',
+      home: GalleryPage(
+        title: 'Image Gallery',
       ),
     );
   }
 }
 
-class AppState extends Model {
+class AppState with ChangeNotifier {
   bool isTagging = false;
   List<PhotoState> photoStates = List.of(urls.map((url) => PhotoState(url)));
   Set<String> tags = {"all", "nature", "cat"};
-
-  static AppState of(BuildContext context) {
-    return ScopedModel.of<AppState>(context);
-  }
 
   void selectTag(String tag) {
     if (isTagging) {
@@ -81,6 +71,15 @@ class AppState extends Model {
   }
 }
 
+/*
+context.read: Whenever I am interesting in getting acces to the state, 
+              but I don't need to be notified when it changes, I am
+              ging to call read method on the context.
+
+context.watch: If I do need to be notified of changes, 
+              because I need to trigger a re-render,
+              then I amgoing to use watch.
+*/
 class PhotoState {
   String url;
   bool selected;
@@ -92,9 +91,8 @@ class PhotoState {
 
 class GalleryPage extends StatelessWidget {
   final String title;
-  final AppState model;
 
-  GalleryPage({this.title, this.model});
+  GalleryPage({this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -105,24 +103,25 @@ class GalleryPage extends StatelessWidget {
           return GridView.count(
             primary: false,
             crossAxisCount: 2,
-            children:
-                List.of(model.photoStates.where((ps) => ps.display ?? true).map(
-                      (ps) => Photo(
-                        state: ps,
-                        model: AppState.of(
-                            context), //ScopedModel.of<AppState>(context),
-                      ),
-                    )),
+            children: List.of(context
+                .watch<AppState>()
+                .photoStates
+                .where((ps) => ps.display ?? true)
+                .map(
+                  (ps) => Photo(
+                    state: ps,
+                  ),
+                )),
           );
         },
       ),
       drawer: Drawer(
         child: ListView(
           children: List.of(
-            model.tags.map((t) => ListTile(
+            context.watch<AppState>().tags.map((t) => ListTile(
                   title: Text(t),
                   onTap: () {
-                    model.selectTag(t);
+                    context.read<AppState>().selectTag(t);
                     Navigator.of(context).pop();
                   },
                 )),
@@ -135,20 +134,19 @@ class GalleryPage extends StatelessWidget {
 
 class Photo extends StatelessWidget {
   final PhotoState state;
-  final AppState model;
 
-  Photo({this.state, this.model});
+  Photo({this.state});
 
   @override
   Widget build(BuildContext context) {
     List<Widget> children = [
       GestureDetector(
         child: Image.network(state.url),
-        onLongPress: () => model.toggleTagging(state.url),
+        onLongPress: () => context.read<AppState>().toggleTagging(state.url),
       ),
     ];
 
-    if (model.isTagging) {
+    if (context.watch<AppState>().isTagging) {
       children.add(Positioned(
           left: 20,
           top: 0,
@@ -157,7 +155,7 @@ class Photo extends StatelessWidget {
                 .copyWith(unselectedWidgetColor: Colors.grey[200]),
             child: Checkbox(
               onChanged: (value) {
-                model.onPhotoSelect(state.url, value);
+                context.read<AppState>().onPhotoSelect(state.url, value);
               },
               value: state.selected,
               activeColor: Colors.white,
