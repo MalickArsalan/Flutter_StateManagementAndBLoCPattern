@@ -13,58 +13,7 @@ const List<String> urls = [
   "https://live.staticflickr.com/65535/50488789168_ff9f1f8809.jpg",
 ];
 
-class App extends StatefulWidget {
-  @override
-  AppState createState() => AppState();
-}
-
-class AppState extends State<App> {
-  bool isTagging = false;
-  List<PhotoState> photoStates = List.of(urls.map((url) => PhotoState(url)));
-  Set<String> tags = {"all", "nature", "cat"};
-
-  void selectTag(String tag) {
-    setState(() {
-      if (isTagging) {
-        if (tag != "all") {
-          photoStates.forEach((element) {
-            if (element.selected) {
-              element.tags.add(tag);
-            }
-          });
-        }
-        toggleTagging(null);
-      } else {
-        photoStates.forEach((element) {
-          element.display = tag == "all" ? true : element.tags.contains(tag);
-        });
-      }
-    });
-  }
-
-  void toggleTagging(String url) {
-    setState(() {
-      isTagging = !isTagging;
-      photoStates.forEach((element) {
-        if (isTagging && element.url == url) {
-          element.selected = true;
-        } else {
-          element.selected = false;
-        }
-      });
-    });
-  }
-
-  void onPhotoSelect(String url, bool selected) {
-    setState(() {
-      photoStates.forEach((element) {
-        if (element.url == url) {
-          element.selected = selected;
-        }
-      });
-    });
-  }
-
+class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
